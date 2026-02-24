@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Settings — Time Trackinator{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Settings</h1>
+</div>
+
+{# ── Pay Rate ───────────────────────────────────────────────── #}
+<div class="settings-card">
+  <h2>Pay Rate</h2>
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="pay_rate">
+    <div class="form-group">
+      <label class="form-label" for="pay_rate">Hourly Rate ($/hr)</label>
+      <div class="input-prefix-group">
+        <span class="input-prefix">$</span>
+        <input
+          type="number"
+          class="form-control"
+          id="pay_rate"
+          name="pay_rate"
+          step="0.01"
+          min="0"
+          placeholder="0.00"
+          value="{{ '%.2f'|format(current_user.pay_rate) if current_user.pay_rate else '' }}"
+        >
+      </div>
+      <p class="form-hint">Used to calculate pay accrued over your pay period. Stored locally, not shared.</p>
+    </div>
+    <button type="submit" class="btn btn-primary">Save Pay Rate</button>
+  </form>
+</div>
+
+{# ── Pay Period ─────────────────────────────────────────────── #}
+<div class="settings-card">
+  <h2>Pay Period</h2>
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="pay_period">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" for="pay_period_start">Start Date</label>
+        <input
+          type="date"
+          class="form-control"
+          id="pay_period_start"
+          name="pay_period_start"
+          value="{{ current_user.pay_period_start.isoformat() if current_user.pay_period_start else '' }}"
+        >
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="pay_period_end">End Date</label>
+        <input
+          type="date"
+          class="form-control"
+          id="pay_period_end"
+          name="pay_period_end"
+          value="{{ current_user.pay_period_end.isoformat() if current_user.pay_period_end else '' }}"
+        >
+      </div>
+    </div>
+    <p class="form-hint" style="margin-bottom:1rem">
+      Set the start and end dates for your current pay period. You can update this each period.
+    </p>
+    <button type="submit" class="btn btn-primary">Save Pay Period</button>
+  </form>
+</div>
+
+{# ── Display ────────────────────────────────────────────────── #}
+<div class="settings-card">
+  <h2>Display</h2>
+  <form method="POST" action="{{ url_for('timeclock.settings') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="theme">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <p><strong>Dark Mode</strong></p>
+        <p class="form-hint">Currently: {{ 'Dark' if current_user.dark_mode else 'Light' }}</p>
+      </div>
+      <button type="submit" class="btn">
+        {% if current_user.dark_mode %}Switch to Light{% else %}Switch to Dark{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+
+{# ── Account Info ───────────────────────────────────────────── #}
+<div class="settings-card">
+  <h2>Account</h2>
+  <dl class="info-list">
+    <dt>Name</dt><dd>{{ current_user.name or '—' }}</dd>
+    <dt>Email</dt><dd>{{ current_user.email }}</dd>
+    <dt>Sign-in Provider</dt><dd>{{ current_user.provider | title }}</dd>
+    <dt>Role</dt><dd>{{ 'Admin' if current_user.is_admin else 'User' }}</dd>
+    <dt>Last Login</dt><dd>{{ current_user.last_login | fmt_dt if current_user.last_login else '—' }}</dd>
+  </dl>
+</div>
+{% endblock %}

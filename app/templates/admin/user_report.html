@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{{ user.name or user.email }} — Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <a href="{{ url_for('admin.dashboard') }}" class="back-link">&larr; Back to Admin</a>
+  <h1>{{ user.name or user.email }}</h1>
+  <p class="text-muted">{{ user.email }}
+    {% if user.pay_rate %}&nbsp;&middot;&nbsp;${{ "%.2f" | format(user.pay_rate) }}/hr{% endif %}
+  </p>
+</div>
+
+{# ── Date Range Filter ───────────────────────────────────────── #}
+<form method="GET" class="filter-bar">
+  <div class="form-group">
+    <label class="form-label" for="start">From</label>
+    <input type="date" class="form-control" id="start" name="start" value="{{ start_str }}">
+  </div>
+  <div class="form-group">
+    <label class="form-label" for="end">To</label>
+    <input type="date" class="form-control" id="end" name="end" value="{{ end_str }}">
+  </div>
+  <button type="submit" class="btn btn-primary">Filter</button>
+  {% if start_str or end_str %}
+    <a href="{{ url_for('admin.user_report', user_id=user.id) }}" class="btn">Clear</a>
+  {% endif %}
+</form>
+
+{# ── Summary ─────────────────────────────────────────────────── #}
+<div class="stats-row" style="margin-bottom:1.25rem">
+  <div class="stat-card">
+    <div class="stat-value">{{ total_hours | fmt_hours }}</div>
+    <div class="stat-label">Total Hours{% if start_str or end_str %} (filtered){% endif %}</div>
+  </div>
+  {% if user.pay_rate %}
+  <div class="stat-card">
+    <div class="stat-value">${{ "%.2f" | format(total_hours * user.pay_rate) }}</div>
+    <div class="stat-label">Pay Accrued</div>
+  </div>
+  {% endif %}
+  <div class="stat-card">
+    <div class="stat-value">{{ entries | length }}</div>
+    <div class="stat-label">Entries</div>
+  </div>
+</div>
+
+{# ── Entries Table ────────────────────────────────────────────── #}
+<div class="section">
+  <div class="section-header">
+    <h2>Time Entries</h2>
+    <a href="{{ url_for('admin.new_entry', user_id=user.id) }}" class="btn btn-sm btn-primary">+ Add Entry</a>
+  </div>
+
+  {% if entries %}
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>In</th>
+          <th>Out</th>
+          <th>Duration</th>
+          <th class="hide-sm">Note</th>
+          <th style="width:1%"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in entries %}
+        <tr {% if not entry.clock_out %}class="active-row"{% endif %}>
+          <td>{{ entry.clock_in | fmt_date }}</td>
+          <td>{{ entry.clock_in | fmt_time }}</td>
+          <td>
+            {% if entry.clock_out %}
+              {{ entry.clock_out | fmt_time }}
+            {% else %}
+              <span class="badge-active">Active</span>
+            {% endif %}
+          </td>
+          <td>{% if entry.clock_out %}{{ entry.duration_display }}{% else %}&mdash;{% endif %}</td>
+          <td class="hide-sm text-muted">{{ entry.note }}</td>
+          <td>
+            <div style="display:flex;gap:0.35rem;justify-content:flex-end">
+              <a href="{{ url_for('admin.edit_entry', entry_id=entry.id) }}" class="btn btn-xs">Edit</a>
+              <form method="POST" action="{{ url_for('admin.delete_entry', entry_id=entry.id) }}"
+                    style="display:inline"
+                    onsubmit="return confirm('Delete this time entry?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-xs btn-danger">Del</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <p>No time entries found{% if start_str or end_str %} for the selected date range{% endif %}.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

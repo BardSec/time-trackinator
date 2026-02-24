@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Admin — Time Trackinator{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Admin Dashboard</h1>
+  <p class="text-muted">Manage team time cards and run reports.</p>
+</div>
+
+{# ── Quick Actions ───────────────────────────────────────────── #}
+<div class="admin-actions">
+  <a href="{{ url_for('admin.dept_report') }}" class="btn btn-primary">Department Report</a>
+  <a href="{{ url_for('admin.restore') }}" class="btn">Backup / Restore</a>
+</div>
+
+{# ── Department Summary ──────────────────────────────────────── #}
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-value">{{ user_data | length }}</div>
+    <div class="stat-label">Total Users</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ user_data | selectattr('is_active') | list | length }}</div>
+    <div class="stat-label">Currently Clocked In</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ dept_week_hours | fmt_hours }}</div>
+    <div class="stat-label">Dept Hours This Week</div>
+  </div>
+</div>
+
+{# ── User List ────────────────────────────────────────────────── #}
+<div class="section">
+  <div class="section-header">
+    <h2>Team</h2>
+  </div>
+
+  {% if user_data %}
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th class="hide-sm">Email</th>
+          <th>Status</th>
+          <th>This Week</th>
+          <th style="width:1%"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in user_data %}
+        <tr>
+          <td>
+            {{ row.user.name or row.user.email.split('@')[0] }}
+            {% if row.user.is_admin %}<span class="badge-admin">Admin</span>{% endif %}
+          </td>
+          <td class="hide-sm text-muted">{{ row.user.email }}</td>
+          <td>
+            {% if row.is_active %}
+              <span class="badge-active">&#9679; Active</span>
+            {% else %}
+              <span class="text-muted">Out</span>
+            {% endif %}
+          </td>
+          <td>{{ row.weekly_hours | fmt_hours }}</td>
+          <td>
+            <a href="{{ url_for('admin.user_report', user_id=row.user.id) }}" class="btn btn-xs btn-primary">Report</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <p>No users have signed in yet.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

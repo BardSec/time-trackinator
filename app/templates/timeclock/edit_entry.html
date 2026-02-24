@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — Time Trackinator{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <a href="{{ url_for('timeclock.dashboard') }}" class="back-link">&larr; Back to Dashboard</a>
+  <h1>{{ title }}</h1>
+</div>
+
+<div class="card form-card">
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="form-group">
+      <label class="form-label" for="clock_in">Clock In *</label>
+      <input
+        type="datetime-local"
+        class="form-control"
+        id="clock_in"
+        name="clock_in"
+        required
+        {% if entry %}value="{{ entry.clock_in.strftime('%Y-%m-%dT%H:%M') }}"{% endif %}
+      >
+      <p class="form-hint">Times are in server local time (set TZ in docker-compose).</p>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="clock_out">Clock Out</label>
+      <input
+        type="datetime-local"
+        class="form-control"
+        id="clock_out"
+        name="clock_out"
+        {% if entry and entry.clock_out %}value="{{ entry.clock_out.strftime('%Y-%m-%dT%H:%M') }}"{% endif %}
+      >
+      <p class="form-hint">Leave blank if the shift is still in progress.</p>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="note">Note <span class="text-muted">(optional)</span></label>
+      <input
+        type="text"
+        class="form-control"
+        id="note"
+        name="note"
+        maxlength="200"
+        placeholder="e.g. Forgot to clock in at start of shift"
+        value="{{ entry.note if entry else '' }}"
+      >
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Save Entry</button>
+      <a href="{{ url_for('timeclock.dashboard') }}" class="btn">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

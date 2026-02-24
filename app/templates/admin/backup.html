@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Backup & Restore — Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <a href="{{ url_for('admin.dashboard') }}" class="back-link">&larr; Back to Admin</a>
+  <h1>Backup &amp; Restore</h1>
+</div>
+
+{# ── Export ──────────────────────────────────────────────────── #}
+<div class="settings-card">
+  <h2>Export Backup</h2>
+  <p class="text-muted" style="margin-bottom:1rem">
+    Downloads a JSON file containing all users and time entries. Store it somewhere safe.
+  </p>
+  <a href="{{ url_for('admin.backup') }}" class="btn btn-primary">
+    &#8659; Download Backup (JSON)
+  </a>
+</div>
+
+{# ── Restore ─────────────────────────────────────────────────── #}
+<div class="settings-card">
+  <h2>Restore from Backup</h2>
+  <p class="text-muted" style="margin-bottom:0.5rem">
+    Upload a previously exported JSON backup file. Existing users will be updated; duplicate time
+    entries (matching user + clock-in time) will be skipped.
+  </p>
+  <div class="alert alert-warning">
+    <strong>Caution:</strong> This operation merges data. It does not delete existing records.
+  </div>
+  <form method="POST" enctype="multipart/form-data" style="margin-top:1rem">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-group">
+      <label class="form-label" for="backup_file">Backup File (.json)</label>
+      <input
+        type="file"
+        class="form-control"
+        id="backup_file"
+        name="backup_file"
+        accept=".json,application/json"
+        required
+      >
+    </div>
+    <button type="submit" class="btn btn-primary"
+            onclick="return confirm('Restore from this backup? Existing data will be merged.')">
+      Restore Backup
+    </button>
+  </form>
+</div>
+{% endblock %}
