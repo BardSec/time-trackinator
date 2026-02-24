@@ -12,8 +12,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application
 COPY . .
 
-# Set ownership
-RUN chown -R timeclock:timeclock /app
+# Create instance dir and set ownership before switching user.
+# This ensures the named volume inherits timeclock ownership on first mount.
+RUN mkdir -p /app/instance && chown -R timeclock:timeclock /app
 
 USER timeclock
 
