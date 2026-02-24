@@ -36,3 +36,11 @@ class Config:
     SESSION_COOKIE_SECURE = bool(
         SECRET_KEY and len(SECRET_KEY) >= 16 and SECRET_KEY not in _weak
     )
+    # Expire "remember me" sessions after 30 days of inactivity
+    from datetime import timedelta
+    PERMANENT_SESSION_LIFETIME = timedelta(days=30)
+
+    # Cap upload size to prevent memory exhaustion from large backup files.
+    # The admin restore route enforces a tighter 10 MB check in code, but this
+    # Flask-level guard rejects oversized requests before they're read at all.
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB
