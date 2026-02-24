@@ -113,6 +113,7 @@ def create_app():
         )
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         if not app.debug:
             response.headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains"

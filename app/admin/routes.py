@@ -9,6 +9,9 @@ from app import db
 from app.admin import admin_bp
 from app.models import TimeEntry, User
 
+_MAX_BACKUP_BYTES = 10 * 1024 * 1024  # 10 MB
+_MAX_NOTE_LEN = 200
+
 
 def admin_required(f):
     @wraps(f)
@@ -59,7 +62,7 @@ def dashboard():
 @admin_bp.route("/user/<int:user_id>")
 @admin_required
 def user_report(user_id):
-    user = db.session.get(User, user_id) or db.session.get(User, user_id)
+    user = db.session.get(User, user_id)
     if not user:
         flash("User not found.", "error")
         return redirect(url_for("admin.dashboard"))
@@ -158,6 +161,7 @@ def new_entry(user_id):
             clock_out_str = request.form.get("clock_out", "").strip()
             note = request.form.get("note", "").strip()
 
+            note = note[:_MAX_NOTE_LEN]
             clock_in_dt = datetime.fromisoformat(clock_in_str)
             clock_out_dt = None
             if clock_out_str:
@@ -174,6 +178,10 @@ def new_entry(user_id):
             )
             db.session.add(entry)
             db.session.commit()
+            current_app.logger.info(
+                "Admin %s added entry for user %s (clock_in=%s)",
+                current_user.email, user_id, clock_in_dt,
+            )
             flash("Time entry added.", "success")
             return redirect(url_for("admin.user_report", user_id=user_id))
         except (ValueError, KeyError):
@@ -201,6 +209,7 @@ def edit_entry(entry_id):
             clock_out_str = request.form.get("clock_out", "").strip()
             note = request.form.get("note", "").strip()
 
+            note = note[:_MAX_NOTE_LEN]
             clock_in_dt = datetime.fromisoformat(clock_in_str)
             clock_out_dt = None
             if clock_out_str:
@@ -213,6 +222,10 @@ def edit_entry(entry_id):
             entry.clock_out = clock_out_dt
             entry.note = note
             db.session.commit()
+            current_app.logger.info(
+                "Admin %s edited entry %s (user %s)",
+                current_user.email, entry_id, entry.user_id,
+            )
             flash("Time entry updated.", "success")
             return redirect(url_for("admin.user_report", user_id=entry.user_id))
         except (ValueError, KeyError):
@@ -236,6 +249,9 @@ def delete_entry(entry_id):
     user_id = entry.user_id
     db.session.delete(entry)
     db.session.commit()
+    current_app.logger.info(
+        "Admin %s deleted entry %s (user %s)", current_user.email, entry_id, user_id
+    )
     flash("Time entry deleted.", "success")
     return redirect(url_for("admin.user_report", user_id=user_id))
 
@@ -281,10 +297,11 @@ def backup():
 
     payload = json.dumps(data, indent=2)
     filename = f"timeclock-backup-{date.today().isoformat()}.json"
+    current_app.logger.info("Admin %s downloaded backup", current_user.email)
     return Response(
         payload,
         mimetype="application/json",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -297,12 +314,20 @@ def restore():
             flash("No file uploaded.", "error")
             return redirect(url_for("admin.restore"))
         try:
-            data = json.loads(f.read())
+            raw = f.read(_MAX_BACKUP_BYTES + 1)
+            if len(raw) > _MAX_BACKUP_BYTES:
+                flash("Backup file exceeds the 10 MB size limit.", "error")
+                return redirect(url_for("admin.restore"))
+            data = json.loads(raw)
             if data.get("app") != "time-trackinator":
                 flash("This does not appear to be a valid Time Trackinator backup.", "error")
                 return redirect(url_for("admin.restore"))
 
-            # Upsert users
+            # Upsert users.
+            # is_admin is intentionally NOT restored from the backup — admin status
+            # is always derived from the ADMIN_EMAILS config on login, never from
+            # untrusted file data.  Restoring it would allow a crafted backup to
+            # silently promote arbitrary accounts to admin.
             old_to_new_id = {}
             for u_data in data.get("users", []):
                 user = User.query.filter_by(email=u_data["email"]).first()
@@ -311,7 +336,6 @@ def restore():
                     db.session.add(user)
                 user.name = u_data.get("name", "")
                 user.provider = u_data.get("provider", "")
-                user.is_admin = u_data.get("is_admin", False)
                 user.pay_rate = u_data.get("pay_rate", 0.0)
                 user.dark_mode = u_data.get("dark_mode", False)
                 if u_data.get("pay_period_start"):
@@ -342,16 +366,23 @@ def restore():
                         if e_data.get("clock_out")
                         else None
                     ),
-                    note=e_data.get("note", ""),
+                    note=e_data.get("note", "")[:_MAX_NOTE_LEN],
                 )
                 db.session.add(entry)
 
             db.session.commit()
+            current_app.logger.info(
+                "Admin %s restored backup (%d users, %d entries)",
+                current_user.email,
+                len(data.get("users", [])),
+                len(data.get("time_entries", [])),
+            )
             flash("Backup restored successfully.", "success")
             return redirect(url_for("admin.dashboard"))
 
-        except (json.JSONDecodeError, KeyError, ValueError) as e:
+        except (json.JSONDecodeError, KeyError, ValueError):
             db.session.rollback()
-            flash(f"Restore failed: {e}", "error")
+            current_app.logger.warning("Admin %s restore failed", current_user.email, exc_info=True)
+            flash("Restore failed: the file appears to be corrupt or invalid.", "error")
 
     return render_template("admin/backup.html")

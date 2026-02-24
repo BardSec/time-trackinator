@@ -7,6 +7,8 @@ from app import db
 from app.models import TimeEntry
 from app.timeclock import timeclock_bp
 
+_MAX_NOTE_LEN = 200
+
 
 @timeclock_bp.route("/")
 @login_required
@@ -86,7 +88,7 @@ def new_entry():
         try:
             clock_in_str = request.form["clock_in"]
             clock_out_str = request.form.get("clock_out", "").strip()
-            note = request.form.get("note", "").strip()
+            note = request.form.get("note", "").strip()[:_MAX_NOTE_LEN]
 
             clock_in_dt = datetime.fromisoformat(clock_in_str)
             clock_out_dt = None
@@ -123,7 +125,7 @@ def edit_entry(entry_id):
         try:
             clock_in_str = request.form["clock_in"]
             clock_out_str = request.form.get("clock_out", "").strip()
-            note = request.form.get("note", "").strip()
+            note = request.form.get("note", "").strip()[:_MAX_NOTE_LEN]
 
             clock_in_dt = datetime.fromisoformat(clock_in_str)
             clock_out_dt = None
